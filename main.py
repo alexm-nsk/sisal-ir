@@ -16,7 +16,7 @@ class TreeVisitor(NodeVisitor):
         return "node" + str(self.node_counter)
         
     def visit_function(self, node, visited_children):
-        name    = visited_children[3]#.text
+        name    = visited_children[3]
         nodes = visited_children[-4]
         return dict(name    = name,
                     nodes   =  nodes,
