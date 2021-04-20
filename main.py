@@ -3,7 +3,7 @@ from parsimonious.nodes   import NodeVisitor
 import pprint
 import json
 
-pp = pprint.PrettyPrinter(indent=1)
+pp = pprint.PrettyPrinter(indent=0)
 
 grammar = Grammar(open("grammar.ini").read())
 
@@ -56,16 +56,23 @@ class TreeVisitor(NodeVisitor):
                     Else   = else_,
                     nodeId = self.get_node_id(),
                     type   = "if_else")
-
+                    
+    # TODO: replace identifiers with connections to master-node's input
     def visit_identifier(self, node, visited_children):
         return dict(name   = node.text, 
                     type   = "identifier", 
                     nodeId = self.get_node_id())
 
     def visit_number(self, node, visited_children):
+        node_id = self.get_node_id()
+        port = {"outPorts" : [dict(index  = 0,
+                              nodeId = node_id,
+                              type   = {"location": "TODO: fill this", "name": "integer"})]}
+                              
         return dict(value  = int(node.text), 
                     type   = "literal", 
-                    nodeId = self.get_node_id())
+                    nodeId = node_id,
+                    ports  = port)
 
     def visit_bin(self, node, visited_children):
         left, _ ,op, _ ,right = visited_children
