@@ -9,23 +9,45 @@ grammar = Grammar(open("grammar.ini").read())
 
 text = open("fibs.sis").read()
 
+def gen_ports(args, nodeId):
+    ports = []
+    for n, a in enumerate(args):
+        ports.append(dict(
+            index  = n,
+            nodeId = nodeId,
+            type   = {"location": "TODO: fill this", "name": "integer"}
+        ))
+    return ports
+    
+def unwrap_list(list_):
+    while type(list_) == list:
+        list_ = list_[0]
+    return list_
+        
 class TreeVisitor(NodeVisitor):
     node_counter = 0
     def get_node_id(self):
         self.node_counter += 1
         return "node" + str(self.node_counter)
-        
+    
     def visit_function(self, node, visited_children):
-        name    = visited_children[3]
-        nodes = visited_children[-4]
-        return dict(name    = name,
-                    nodes   =  nodes,
-                    node_id = self.get_node_id(),
+        name     = visited_children[3]["name"]
+        nodes    = visited_children[-4]
+        args     = visited_children[7]
+        num_args = len(args)
+        node_id  = self.get_node_id()
+        return dict(ports = gen_ports(args, node_id),
+                    name    = name,
+                    nodes   = nodes,
+                    node_id = node_id,
                     type    = "function")
-
+                    
+    def visit_arg_def_list(self, node, visited_children):       
+        return [visited_children[0]] + [ a[-1] for a in visited_children[1] ]
+        
     def visit_if_else(self, node, visited_children):
         cond,  = visited_children[2]
-        then,  = visited_children[6][0]
+        then,  = visited_children[6]
         else_ ,= visited_children[10]
         return dict(name    = "if",
                     Cond    = cond,
@@ -51,8 +73,18 @@ class TreeVisitor(NodeVisitor):
                     type    = "binary")
                     
     def visit_call(self, node, visited_children):
-        return dict(name    = "call",
-                    nodes   = visited_children[5][0],
+        ports = []
+        
+        #due to reccursive argument listing, the first argument and the rest are separated
+        first_argument, other_arguments  = visited_children[5]         
+        
+        args = [unwrap_list(first_argument) ] + [ unwrap_list(a[-1]) for a in  other_arguments]        
+        #TODO count args, create ports for them, connect them with edges
+        
+        return dict(functionName = visited_children[1]["name"],
+                    ports   = ports,
+                    name    = "call",
+                    nodes   = args,
                     node_id = self.get_node_id(),
                     type    = "call")
         
@@ -64,5 +96,5 @@ tv = TreeVisitor()
 IR = tv.visit(grammar.parse(text))
 
 json_data = json.dumps( IR, indent=2, sort_keys=True)
-open("IR.json", "w").write(json_data)
+#open("IR.json", "w").write(json_data)
 pp.pprint  (IR)
