@@ -1,4 +1,4 @@
-function Fib( M : integer returns integer )
+function Fib( M, n : integer returns integer, real )
   if M < 2 then
     Fib(M, N)
   else

@@ -11,21 +11,8 @@ text = open("fibs.sis").read()
 
 #--------------------------------------------------------------------------------
 
-def gen_ports(args, nodeId):
-    
-    ports = []
-    for n, a in enumerate(args):
-        ports.append(dict(
-            index  = n,
-            nodeId = nodeId,
-            type   = {"location": "TODO: fill this", "name": "integer"}
-        ))
-    return ports
-
-#--------------------------------------------------------------------------------
-
 def unwrap_list(list_):
-    
+
     while type(list_) == list:
         list_ = list_[0]
     return list_
@@ -33,28 +20,112 @@ def unwrap_list(list_):
 #--------------------------------------------------------------------------------
 
 class TreeVisitor(NodeVisitor):
-    
+
     node_counter = 0
 
     #--------------------------------------------------------------------------------
 
     def get_node_id(self):
-        
+
         self.node_counter += 1
         return "node" + str(self.node_counter)
 
     #--------------------------------------------------------------------------------
 
+    def visit_std_type ( self, node, visited_children ):
+        #print ("type", node.text)
+        return node.text
+
+    #--------------------------------------------------------------------------------
+
+    def visit_type ( self, node, visited_children ):
+        #print ("found type", node.text)
+        return visited_children[0]
+
+    #--------------------------------------------------------------------------------
+    '''
+    "params": [
+                                [
+                                    "M",
+                                    {
+                                        "index": 0,
+                                        "nodeId": "node3",
+                                        "type": {
+                                            "location": "2:19-2:26",
+                                            "name": "integer"
+                                        }
+                                    }
+                                ]
+                            ]
+
+
+             "outPorts": [
+                {
+                    "index": 0,
+                    "nodeId": "node15",
+                    "type": {
+                        "location": "2:35-2:42",
+                        "name": "integer"
+                    }
+                }
+            ],
+
+
+
+                            '''
+    #--------------------------------------------------------------------------------
+    
+    def generate_outports(self, retvals, node_id):
+        return [{
+                    "index" : n,
+                    "nodeId" : node_id,
+                    "type": {
+                        "location" : "",
+                        "name" : t
+                    }
+                }
+                for n, t in enumerate (retvals)]
+
+    #--------------------------------------------------------------------------------
+
+    def gen_ports(self, args, nodeId):
+
+        ports = []
+        for n, a in enumerate(args):
+            ports.append(dict(
+                index  = n,
+                nodeId = nodeId,
+                type   = {"location": "TODO: fill this", "name": "integer"}
+            ))
+        return ports
+
+    #--------------------------------------------------------------------------------
+
     def visit_function(self, node, visited_children):
-        
-        name     = visited_children[ 3 ]["name"]
-        args     = visited_children[ 7 ]
+
+        node_id     = self.get_node_id()
+        name        = visited_children[ 3 ]["name"]
+        args        = visited_children[ 7 ]
+        type_string = visited_children[ 11 ].text
+        #unpack return value strings in form of a list:
+        retvals     = [visited_children[15][0]] + [r[-1] for r in visited_children[15][1]]
+        params = [ [arg["name"],
+                   {
+                       "index"    : n,
+                       "nodeId"   : node_id,
+                       "type":
+                       {
+                            "location" : "",
+                            "name"     : type_string
+                       }
+
+                   }]
+                   for n, arg in enumerate(args) ]
         nodes    = visited_children[-4 ]
         num_args = len(args)
-        node_id  = self.get_node_id()
-        return dict(params       = "",
-                    inPorts      = gen_ports(args, node_id),
-                    outPorts     = [],
+        return dict(params       = params,
+                    inPorts      = self.gen_ports(args, node_id),
+                    outPorts     = self.generate_outports(retvals, node_id),
                     functionName = name,
                     nodes        = nodes,
                     id           = node_id,
@@ -65,14 +136,14 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_arg_def_list(self, node, visited_children):
-        
+
         #due to recursive argument listing, the first argument and the rest are separated
         return [visited_children[0]] + [ a[-1] for a in visited_children[1] ]
 
     #--------------------------------------------------------------------------------
 
     def visit_if_else(self, node, visited_children):
-        
+
         cond,  = visited_children[2]
         then,  = visited_children[6]
         else_ ,= visited_children[10]
@@ -87,7 +158,7 @@ class TreeVisitor(NodeVisitor):
 
     # TODO: replace identifiers with connections to master-node's input
     def visit_identifier(self, node, visited_children):
-        
+
         return dict(name   = node.text,
                     type   = "identifier",
                     nodeId = self.get_node_id())
@@ -95,7 +166,7 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_number(self, node, visited_children):
-        
+
         node_id = self.get_node_id()
         port = {"outPorts" : [dict(index  = 0,
                               nodeId = node_id,
@@ -109,7 +180,7 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_bin(self, node, visited_children):
-        
+
         left, _ ,op, _ ,right = visited_children
 
         return dict(name   = "binary",
@@ -121,7 +192,7 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_call(self, node, visited_children):
-        
+
         #due to recursive argument listing, the first argument and the rest are separated
         first_argument, other_arguments  = visited_children[5]
 
@@ -132,7 +203,7 @@ class TreeVisitor(NodeVisitor):
         function_name = visited_children[1]["name"]
 
         return dict(callee = function_name,
-                    ports  = gen_ports(args, node_id),
+                    ports  = self.gen_ports(args, node_id),
                     name   = "call",
                     nodes  = args,
                     nodeId = node_id,
@@ -150,5 +221,5 @@ tv = TreeVisitor()
 IR = tv.visit(grammar.parse(text))
 
 json_data = json.dumps( IR, indent=2, sort_keys=True)
-#open("IR.json", "w").write(json_data)
+# ~ open("IR.json", "w").write(json_data)
 pp.pprint  (IR)
