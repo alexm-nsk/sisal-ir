@@ -68,12 +68,12 @@ class TreeVisitor(NodeVisitor):
 
     #--------------------------------------------------------------------------------
 
-    def visit_std_type ( self, node, visited_children ):
+    def visit_std_type(self, node, visited_children):
         return node.text
 
     #--------------------------------------------------------------------------------
 
-    def visit_type ( self, node, visited_children ):
+    def visit_type(self, node, visited_children):
         return visited_children[0]
 
     #--------------------------------------------------------------------------------
@@ -124,41 +124,47 @@ class TreeVisitor(NodeVisitor):
         #--------------------------------------------------------------------------------
         # process args:
         #--------------------------------------------------------------------------------
-            
-        params = []    
+        
+        params   = []
+        in_ports = []
+        
         all_args  = self.unpack_rec_list( visited_children[7] )
 
         for arg_block in all_args:
             args        = arg_block[0]
             type_string = arg_block[-1]
-            
+
             retvals     = self.unpack_rec_list( visited_children[11] )
-            
-            params      += [[arg["name"],
-                           {
-                               "index"    : n,
-                               "nodeId"   : node_id,
-                               "type":
+
+            params      += [   # first - the name, second - the contents
+                               [arg["name"],
+
                                {
-                                    "location" : arg["location"],
-                                    "name"     : type_string
+                                   "index"    : n,
+                                   "nodeId"   : node_id,
+                                   "type":
+                                   {
+                                        "location" : arg["location"],
+                                        "name"     : type_string
+                                   }
                                }
-                           }]
-                           for n, arg in enumerate(args) ]
-        #--------------------------------------------------------------------------------
-        
-        
-        child_nodes = visited_children[-4 ]
-        num_args    = len(args)
-        in_ports    = [ dict(
-                            index  = n,
+                            ]
+                           for n, arg in enumerate(args) 
+                           ]
+
+            in_ports    += [ dict(
+                            index  = n + len(in_ports), # we offset with len(in_ports)
+                                                        # to keep proper indices order
                             nodeId = node_id,
-                                                                        # TODO use actual
-                                                                        # type here
-                            type   = {"location" : a["location"], "name": "integer"}
-                        )
-                        for n, a in enumerate(args)
-                      ]
+                            type   = {"location" : arg["location"], "name": type_string}
+                            )
+                            for n, arg in enumerate(args)
+                           ]
+
+        #--------------------------------------------------------------------------------
+
+
+        child_nodes = visited_children[-4]
 
         this_node = dict(params       = params,
                                         # TODO make inports properly
@@ -208,14 +214,14 @@ class TreeVisitor(NodeVisitor):
     # TODO: replace identifiers with edges connectin current slot to master-node's input
     def visit_identifier(self, node, visited_children):
 
-        node_id = self.get_node_id()
+        node_id = "not applicable"#self.get_node_id()
 
         this_node = dict(name     = node.text,
                          id       = node_id,
                          location = get_location(text, node),
                          )
 
-        nodes[ node_id ] = this_node
+        #nodes[ node_id ] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
