@@ -27,8 +27,10 @@ text = open("fibs.sis").read()
 functions = {}
 #--------------------------------------------------------------------------------
 
-def get_location(text, node):
-
+def get_location(node):
+    
+    text = node.full_text
+    
     start_row    = text[:node.start].count("\n") + 1 # lines have to start from "1"
     start_column = len (  (text[:node.start].split("\n"))[-1]  )
 
@@ -117,7 +119,6 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_function(self, node, visited_children):
-
         node_id     = self.get_node_id()
         name        = visited_children[3]["name"]
 
@@ -177,7 +178,7 @@ class TreeVisitor(NodeVisitor):
                          name         = "Lambda",
                                         # TODO make edges
                          edges        = "",
-                         location     = get_location(text, node),
+                         location     = get_location(node),
                          )
 
         nodes[node_id] = this_node
@@ -203,7 +204,7 @@ class TreeVisitor(NodeVisitor):
                          Then      = then,
                          Else      = else_,
                          nodeId    = node_id,
-                         location  = get_location(text, node),
+                         location  = get_location(node),
                          )
 
         nodes[node_id] = this_node
@@ -218,7 +219,7 @@ class TreeVisitor(NodeVisitor):
 
         this_node = dict(name     = node.text,
                          id       = node_id,
-                         location = get_location(text, node),
+                         location = get_location(node),
                          )
 
         #nodes[ node_id ] = this_node
@@ -238,7 +239,7 @@ class TreeVisitor(NodeVisitor):
                          name     = "Literal",
                          id       = node_id,
                          outPorts = out_ports,
-                         location = get_location(text, node),
+                         location = get_location(node),
                          )
 
         nodes[node_id] = this_node
@@ -256,7 +257,7 @@ class TreeVisitor(NodeVisitor):
                          nodes  = [left[0], right[0]],
                          op     = op[0].text,
                          id     = node_id,
-                         location = get_location(text, node))
+                         location = get_location(node))
 
         nodes[node_id] = this_node
         return this_node
@@ -275,12 +276,11 @@ class TreeVisitor(NodeVisitor):
         this_node = dict(callee   = function_name,
                          inPorts  = self.generate_inports(args, node_id),
                          outPorts = [],# see function definition to get ports count and types
-                         name     = "call",
+                         name     = "FunctionCall",
                          nodes    = args,
                          id       = node_id,
-                         location = get_location(text, node),
+                         location = get_location(node),
                          )
-
         nodes[node_id] = this_node
         return this_node
 
@@ -296,7 +296,8 @@ tv = TreeVisitor()
 IR = tv.visit(grammar.parse(text))
 
 json_data = json.dumps(IR, indent=2, sort_keys=True)
+# ~ print (IR["nodes"])
 # ~ open("IR.json", "w").write(json_data)
 # ~ pp.pprint  (IR)
-print (json_data)
+# ~ print (json_data)
 #for k, v in nodes.items():            print (k)
