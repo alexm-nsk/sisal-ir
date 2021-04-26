@@ -23,6 +23,8 @@ text = open("fibs.sis").read()
 
 # edges
 
+#save various data here for second pass (like connections between nodes)
+functions = {}
 #--------------------------------------------------------------------------------
 
 def get_location(text, node):
@@ -109,33 +111,50 @@ class TreeVisitor(NodeVisitor):
         return [node[0]]    +    [r[-1] for r in node[1]]
 
     #--------------------------------------------------------------------------------
+    def enum_print(self,obj):
+        for n, o in enumerate(obj):
+            print (n, ":", o)
+    #--------------------------------------------------------------------------------
 
     def visit_function(self, node, visited_children):
 
         node_id     = self.get_node_id()
-        name        = visited_children[ 3]["name"]
-        args        = visited_children[ 7]
-        print (args)
-        type_string = visited_children[11].text
-        #unpack return value strings in form of a list:
-        retvals     = self.unpack_rec_list( visited_children[15] )
-        params      = [[arg["name"],
-                       {
-                           "index"    : n,
-                           "nodeId"   : node_id,
-                           "type":
-                           {
-                                "location" : arg["location"],
-                                "name"     : type_string
-                           }
-                       }]
-                       for n, arg in enumerate(args) ]
+        name        = visited_children[3]["name"]
 
+        #--------------------------------------------------------------------------------
+        # process args:
+        #--------------------------------------------------------------------------------
+            
+        params = []    
+        all_args  = self.unpack_rec_list( visited_children[7] )
+
+        for arg_block in all_args:
+            args        = arg_block[0]
+            type_string = arg_block[-1]
+            
+            retvals     = self.unpack_rec_list( visited_children[11] )
+            
+            params      += [[arg["name"],
+                           {
+                               "index"    : n,
+                               "nodeId"   : node_id,
+                               "type":
+                               {
+                                    "location" : arg["location"],
+                                    "name"     : type_string
+                               }
+                           }]
+                           for n, arg in enumerate(args) ]
+        #--------------------------------------------------------------------------------
+        
+        
         child_nodes = visited_children[-4 ]
         num_args    = len(args)
         in_ports    = [ dict(
                             index  = n,
                             nodeId = node_id,
+                                                                        # TODO use actual
+                                                                        # type here
                             type   = {"location" : a["location"], "name": "integer"}
                         )
                         for n, a in enumerate(args)
@@ -143,7 +162,7 @@ class TreeVisitor(NodeVisitor):
 
         this_node = dict(params       = params,
                                         # TODO make inports properly
-                         inPorts      = in_ports,#self.generate_inports(args, node_id),
+                         inPorts      = in_ports,
                                         # TODO save outports for calls
                          outPorts     = self.generate_outports(retvals, node_id),
                          functionName = name,
@@ -173,12 +192,12 @@ class TreeVisitor(NodeVisitor):
         then,  = visited_children[6]
         else_ ,= visited_children[10]
 
-        this_node = dict(name     = "if",
-                         Cond     = cond,
-                         Then     = then,
-                         Else     = else_,
-                         nodeId   = node_id,
-                         location = get_location(text, node),
+        this_node = dict(name      = "if",
+                         condition = cond,
+                         Then      = then,
+                         Else      = else_,
+                         nodeId    = node_id,
+                         location  = get_location(text, node),
                          )
 
         nodes[node_id] = this_node
@@ -191,8 +210,8 @@ class TreeVisitor(NodeVisitor):
 
         node_id = self.get_node_id()
 
-        this_node = dict(name   = node.text,
-                         id     = node_id,
+        this_node = dict(name     = node.text,
+                         id       = node_id,
                          location = get_location(text, node),
                          )
 
@@ -211,7 +230,7 @@ class TreeVisitor(NodeVisitor):
 
         this_node = dict(value    = int(node.text),
                          name     = "Literal",
-                         id   = node_id,
+                         id       = node_id,
                          outPorts = out_ports,
                          location = get_location(text, node),
                          )
