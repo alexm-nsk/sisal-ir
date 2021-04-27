@@ -24,13 +24,12 @@ text = open("fibs.sis").read()
 # edges
 
 #save various data here for second pass (like connections between nodes)
-functions = {}
 #--------------------------------------------------------------------------------
 
 def get_location(node):
-    
+
     text = node.full_text
-    
+
     start_row    = text[:node.start].count("\n") + 1 # lines have to start from "1"
     start_column = len (  (text[:node.start].split("\n"))[-1]  )
 
@@ -48,24 +47,24 @@ def unwrap_list(list_):
     return list_
 
 #--------------------------------------------------------------------------------
-# Here we store all the nodes, addressed by their names like "node3"
-nodes  = {}
-# Here we store parameters (as in input variables) of each node, addressed the
-# same way. Nodes like "function" and "if" must have those
-params = {}
-
-#--------------------------------------------------------------------------------
-
+#import inspect
 class TreeVisitor(NodeVisitor):
 
     node_counter = 0
-
+    functions = {}
+    # Here we store parameters (as in input variables) of each node, addressed the
+    # same way. Nodes like "function" and "if" must have those
+    params = {}
+    # Here we store all the nodes, addressed by their names like "node3"
+    nodes  = {}
     #--------------------------------------------------------------------------------
 
     def get_node_id(self):
 
         self.node_counter += 1
-
+        
+        #print("node" + str(self.node_counter),inspect.stack()[0])
+        
         return "node" + str(self.node_counter)
 
     #--------------------------------------------------------------------------------
@@ -125,10 +124,10 @@ class TreeVisitor(NodeVisitor):
         #--------------------------------------------------------------------------------
         # process args:
         #--------------------------------------------------------------------------------
-        
+
         params   = []
         in_ports = []
-        
+
         all_args  = self.unpack_rec_list( visited_children[7] )
 
         for arg_block in all_args:
@@ -150,16 +149,16 @@ class TreeVisitor(NodeVisitor):
                                    }
                                }
                             ]
-                           for n, arg in enumerate(args) 
+                           for n, arg in enumerate(args)
                            ]
 
             in_ports    += [ dict(
-                            index  = n + len(in_ports), # we offset with len(in_ports)
+                             index  = n + len(in_ports), # we offset with len(in_ports)
                                                         # to keep proper indices order
-                            nodeId = node_id,
-                            type   = {"location" : arg["location"], "name": type_string}
-                            )
-                            for n, arg in enumerate(args)
+                             nodeId = node_id,
+                             type   = {"location" : arg["location"], "name": type_string}
+                             )
+                             for n, arg in enumerate(args)
                            ]
 
         #--------------------------------------------------------------------------------
@@ -167,7 +166,8 @@ class TreeVisitor(NodeVisitor):
 
         child_nodes = visited_children[-4]
 
-        this_node = dict(params       = params,
+        this_node = dict(
+                         params       = params,
                                         # TODO make inports properly
                          inPorts      = in_ports,
                                         # TODO save outports for calls
@@ -181,7 +181,11 @@ class TreeVisitor(NodeVisitor):
                          location     = get_location(node),
                          )
 
-        nodes[node_id] = this_node
+        for c_n in this_node["nodes"]:
+            c_n["parent_node"] = this_node["id"]
+
+        self.nodes[node_id]  = this_node
+        self.functions[name] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
@@ -195,19 +199,56 @@ class TreeVisitor(NodeVisitor):
     def visit_if_else(self, node, visited_children):
         node_id = self.get_node_id()
 
-        cond,  = visited_children[2]
-        then,  = visited_children[6]
-        else_ ,= visited_children[10]
+        def make_branch(node, name):
+            branch_node_id = self.get_node_id()
+            branch = dict(
+                            nodes       = [node],
+                            id          = branch_node_id,
+                            name        = name,
+                            edges       = [],
+                            inPorts     = [],
+                            outPorts    = [],
+                            params      = [],
+                            location    = "not applicable",
+                            parent_node = node_id,
+                          )
+            self.nodes[branch_node_id] = branch
+            return branch
+
+        then   = make_branch(visited_children[6][0] ,"Then")
+        else_  = make_branch(visited_children[10][0],"Else")
+        
+        condition_node_id = self.get_node_id()
+        
+        cond  =    dict(
+                         node        = [visited_children[2][0]],
+                         name        = "Condition",
+                         edges       = [],
+                         id          = condition_node_id,
+                         inPorts     = [],
+                         outPorts    = [],
+                         params      = [],
+                         location    = "not applicable",
+                         parent_node = node_id,
+                       )
+                       
+        self.nodes[condition_node_id] = cond         
 
         this_node = dict(name      = "if",
+                         nodes     = [],
+                         edges     = [],
+                         inPorts   = [],
+                         outPorts  = [],
+                         params    = [],
+                         branches  = [then, else_],
                          condition = cond,
-                         Then      = then,
-                         Else      = else_,
-                         nodeId    = node_id,
+                         id        = node_id,
                          location  = get_location(node),
                          )
 
-        nodes[node_id] = this_node
+        #visited_children[2]["parent_node"] = this_node["id"]
+
+        self.nodes[node_id] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
@@ -235,14 +276,15 @@ class TreeVisitor(NodeVisitor):
                                         nodeId = node_id,
                                         type   = {"location": "not applicable", "name": "integer"})]}
 
-        this_node = dict(value    = int(node.text),
+        this_node = dict(
+                         value    = int(node.text),
                          name     = "Literal",
                          id       = node_id,
                          outPorts = out_ports,
                          location = get_location(node),
-                         )
+                        )
 
-        nodes[node_id] = this_node
+        self.nodes[node_id] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
@@ -259,7 +301,7 @@ class TreeVisitor(NodeVisitor):
                          id     = node_id,
                          location = get_location(node))
 
-        nodes[node_id] = this_node
+        self.nodes[node_id] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
@@ -273,7 +315,9 @@ class TreeVisitor(NodeVisitor):
         #TODO count args, create ports for them, connect them with edges
         function_name = visited_children[1]["name"]
 
-        this_node = dict(callee   = function_name,
+        this_node = dict(
+                         callee   = function_name,
+                         # TODO add a check that the call has the same in_ports as the function
                          inPorts  = self.generate_inports(args, node_id),
                          outPorts = [],# see function definition to get ports count and types
                          name     = "FunctionCall",
@@ -281,7 +325,8 @@ class TreeVisitor(NodeVisitor):
                          id       = node_id,
                          location = get_location(node),
                          )
-        nodes[node_id] = this_node
+
+        self.nodes[node_id] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
@@ -290,10 +335,34 @@ class TreeVisitor(NodeVisitor):
         """ The generic visit method. """
         return visited_children or node
 
+    #--------------------------------------------------------------------------------
+    def translate(self, parsed_data):
+
+        print ("translate called")
+
+        # first pass: build our tree
+        IR = super().visit(parsed_data)
+
+        # second pass: add edges and output ports for function calls, etc.
+        for name, node in self.nodes.items():
+            print (name)
+            if node["name"] == "FunctionCall":
+                called_function = self.functions[node["callee"]]
+                node["outPorts"] = called_function["outPorts"]
+                #called_function["nodes"] += node["nodes"]
+                #node["nodes"] = None
+                
+        for name, node in self.nodes.items():
+            if "parent_node" in node: del node["parent_node"]
+            
+        return IR
+
 #--------------------------------------------------------------------------------
 
 tv = TreeVisitor()
-IR = tv.visit(grammar.parse(text))
+IR = tv.translate(grammar.parse(text))
+# second_pass(IR)
+# TODO Go through all nodes and remove "parentnode"
 
 json_data = json.dumps(IR, indent=2, sort_keys=True)
 # ~ print (IR["nodes"])

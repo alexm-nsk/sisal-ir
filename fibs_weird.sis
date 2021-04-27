@@ -1,0 +1,7 @@
+function Fib( M, n : integer; r:real returns integer, real )
+  if M < 2 then
+    Fib(M, N)
+  else
+    Fib( M - 1 ) + Fib (M-2,2)
+  end if
+end function
