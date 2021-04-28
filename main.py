@@ -23,7 +23,9 @@ text = open("fibs.sis").read()
 
 # edges
 
-#save various data here for second pass (like connections between nodes)
+#TODO no arguments case
+#TODO list used variables (and nodes)
+
 #--------------------------------------------------------------------------------
 
 def get_location(node):
@@ -62,9 +64,7 @@ class TreeVisitor(NodeVisitor):
     def get_node_id(self):
 
         self.node_counter += 1
-        
-        #print("node" + str(self.node_counter),inspect.stack()[0])
-        
+
         return "node" + str(self.node_counter)
 
     #--------------------------------------------------------------------------------
@@ -115,6 +115,26 @@ class TreeVisitor(NodeVisitor):
     def enum_print(self,obj):
         for n, o in enumerate(obj):
             print (n, ":", o)
+    #--------------------------------------------------------------------------------
+              
+    def create_edge(self, node1_id, node2_id, src_index, dst_index):
+        return [    {"index"  : src_index,
+                     "nodeId" : node1_id,
+                     "type"   : {
+                        "location" : "",
+                        "name"     : "integer" #TODO get actual type from node's port
+                        }
+                     }
+                    ,
+                    {"index"  : dst_index,
+                     "nodeId" : node2_id,
+                     "type"   : {
+                        "location" : "",
+                        "name"     : "integer" #TODO get actual type from node's port
+                        }
+                     }
+                ]
+
     #--------------------------------------------------------------------------------
 
     def visit_function(self, node, visited_children):
@@ -181,8 +201,8 @@ class TreeVisitor(NodeVisitor):
                          location     = get_location(node),
                          )
 
-        for c_n in this_node["nodes"]:
-            c_n["parent_node"] = this_node["id"]
+        for child_node in this_node["nodes"]:
+            child_node["parent_node"] = this_node["id"]
 
         self.nodes[node_id]  = this_node
         self.functions[name] = this_node
@@ -217,9 +237,9 @@ class TreeVisitor(NodeVisitor):
 
         then   = make_branch(visited_children[6][0] ,"Then")
         else_  = make_branch(visited_children[10][0],"Else")
-        
+
         condition_node_id = self.get_node_id()
-        
+
         cond  =    dict(
                          node        = [visited_children[2][0]],
                          name        = "Condition",
@@ -231,11 +251,11 @@ class TreeVisitor(NodeVisitor):
                          location    = "not applicable",
                          parent_node = node_id,
                        )
-                       
-        self.nodes[condition_node_id] = cond         
+
+        self.nodes[condition_node_id] = cond
 
         this_node = dict(name      = "if",
-                         nodes     = [],
+                         nodes     = [],#leave empty
                          edges     = [],
                          inPorts   = [],
                          outPorts  = [],
@@ -295,10 +315,10 @@ class TreeVisitor(NodeVisitor):
 
         left, _ ,op, _ ,right = visited_children
 
-        this_node = dict(name   = "binary",
-                         nodes  = [left[0], right[0]],
-                         op     = op[0].text,
-                         id     = node_id,
+        this_node = dict(name     = "Binary",
+                         nodes    = [left[0], right[0]],
+                         operator = op[0].text,
+                         id       = node_id,
                          location = get_location(node))
 
         self.nodes[node_id] = this_node
@@ -338,23 +358,26 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
     def translate(self, parsed_data):
 
-        print ("translate called")
-
         # first pass: build our tree
         IR = super().visit(parsed_data)
 
         # second pass: add edges and output ports for function calls, etc.
         for name, node in self.nodes.items():
-            print (name)
             if node["name"] == "FunctionCall":
-                called_function = self.functions[node["callee"]]
+                called_function  = self.functions[node["callee"]]
                 node["outPorts"] = called_function["outPorts"]
                 #called_function["nodes"] += node["nodes"]
                 #node["nodes"] = None
-                
+            if "parent_node" in node :
+                print (
+                        "node:{}, parent:{}".format(
+                            node["name"],
+                            self.nodes[node["parent_node"]]["name"])
+                      )
+
         for name, node in self.nodes.items():
             if "parent_node" in node: del node["parent_node"]
-            
+
         return IR
 
 #--------------------------------------------------------------------------------
