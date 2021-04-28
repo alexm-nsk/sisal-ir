@@ -197,7 +197,7 @@ class TreeVisitor(NodeVisitor):
                          id           = node_id,
                          name         = "Lambda",
                                         # TODO make edges
-                         edges        = "",
+                         edges        = [self.create_edge(child_nodes[0]["id"],node_id, 0,0)],
                          location     = get_location(node),
                          )
 
@@ -217,8 +217,12 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_if_else(self, node, visited_children):
-        node_id = self.get_node_id()
-
+        
+        node_id   = self.get_node_id()
+        then_node = visited_children[6][0]
+        else_node = visited_children[10][0]
+        cond_node = visited_children[2][0]
+        
         def make_branch(node, name):
             branch_node_id = self.get_node_id()
             branch = dict(
@@ -235,13 +239,13 @@ class TreeVisitor(NodeVisitor):
             self.nodes[branch_node_id] = branch
             return branch
 
-        then   = make_branch(visited_children[6][0] ,"Then")
-        else_  = make_branch(visited_children[10][0],"Else")
+        then  = make_branch(then_node, "Then")
+        else_ = make_branch(else_node, "Else")
 
         condition_node_id = self.get_node_id()
 
         cond  =    dict(
-                         node        = [visited_children[2][0]],
+                         nodes        = [cond_node],
                          name        = "Condition",
                          edges       = [],
                          id          = condition_node_id,
@@ -384,12 +388,10 @@ class TreeVisitor(NodeVisitor):
 
 tv = TreeVisitor()
 IR = tv.translate(grammar.parse(text))
-# second_pass(IR)
-# TODO Go through all nodes and remove "parentnode"
 
 json_data = json.dumps(IR, indent=2, sort_keys=True)
 # ~ print (IR["nodes"])
 # ~ open("IR.json", "w").write(json_data)
 # ~ pp.pprint  (IR)
-# ~ print (json_data)
+print (json_data)
 #for k, v in nodes.items():            print (k)
