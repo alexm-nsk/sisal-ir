@@ -116,7 +116,7 @@ class TreeVisitor(NodeVisitor):
         for n, o in enumerate(obj):
             print (n, ":", o)
     #--------------------------------------------------------------------------------
-              
+
     def create_edge(self, node1_id, node2_id, src_index, dst_index):
         return [    {"index"  : src_index,
                      "nodeId" : node1_id,
@@ -157,7 +157,7 @@ class TreeVisitor(NodeVisitor):
             retvals     = self.unpack_rec_list( visited_children[11] )
 
             params      += [   # first - the name, second - the contents
-                               [arg["name"],
+                               [arg["identifier"],
 
                                {
                                    "index"    : n,
@@ -217,14 +217,15 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def visit_if_else(self, node, visited_children):
-        
+
         node_id   = self.get_node_id()
         then_node = visited_children[6][0]
         else_node = visited_children[10][0]
         cond_node = visited_children[2][0]
-        
+
         def make_branch(node, name):
             branch_node_id = self.get_node_id()
+            node["parent_node"] = branch_node_id
             branch = dict(
                             nodes       = [node],
                             id          = branch_node_id,
@@ -243,6 +244,8 @@ class TreeVisitor(NodeVisitor):
         else_ = make_branch(else_node, "Else")
 
         condition_node_id = self.get_node_id()
+
+        cond_node["parent_node"] = condition_node_id
 
         cond  =    dict(
                          nodes        = [cond_node],
@@ -277,22 +280,22 @@ class TreeVisitor(NodeVisitor):
 
     #--------------------------------------------------------------------------------
 
-    # TODO: replace identifiers with edges connectin current slot to master-node's input
+    # TODO: replace identifiers with edges connecting current slot to master-node's input
     def visit_identifier(self, node, visited_children):
-
         node_id = "not applicable"#self.get_node_id()
-
-        this_node = dict(name     = node.text,
-                         id       = node_id,
-                         location = get_location(node),
-                         )
+        this_node = dict(
+                        name       = "Identifier",
+                        identifier = node.text,
+                        id         = node_id,
+                        location   = get_location(node),
+                        )
 
         #nodes[ node_id ] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
 
-    def visit_number(self, node, visited_chidlren):
+    def visit_number(self, node, visited_children):
 
         node_id   = self.get_node_id()
 
@@ -318,12 +321,18 @@ class TreeVisitor(NodeVisitor):
         node_id = self.get_node_id()
 
         left, _ ,op, _ ,right = visited_children
+        left  = left[0]
+        right = right[0]
+        op    = op[0]
 
-        this_node = dict(name     = "Binary",
-                         nodes    = [left[0], right[0]],
-                         operator = op[0].text,
-                         id       = node_id,
-                         location = get_location(node))
+        left ["parent_node"] = node_id
+        right["parent_node"] = node_id
+
+        this_node = dict(name        = "Binary",
+                         nodes       = [left, right],
+                         operator    = op.text,
+                         id          = node_id,
+                         location    = get_location(node))
 
         self.nodes[node_id] = this_node
         return this_node
@@ -333,11 +342,11 @@ class TreeVisitor(NodeVisitor):
     def visit_call(self, node, visited_children):
 
         node_id       = self.get_node_id()
+        args          = [unwrap_list(self.unpack_rec_list(visited_children[5]))]
 
-        args          = self.unpack_rec_list(visited_children[5])
 
         #TODO count args, create ports for them, connect them with edges
-        function_name = visited_children[1]["name"]
+        function_name = visited_children[1]["identifier"]
 
         this_node = dict(
                          callee   = function_name,
@@ -360,24 +369,45 @@ class TreeVisitor(NodeVisitor):
         return visited_children or node
 
     #--------------------------------------------------------------------------------
+    # returns the number of identifiers contained in the subtree under the specified node
+    def get_used_identifiers(self, node):
+        def __get_used_identifiers__(node):
+            result = []
+            # ~ print (node)
+            if node["name"] == "Identifier":
+                # ~ print (node)
+                result.append( node)
+
+            if "nodes" in node:
+                for n in node["nodes"]:
+                    result += __get_used_identifiers__(n)
+
+            if [] in result : result.remove([])
+
+            return result
+
+        return __get_used_identifiers__(node)
+
+    #--------------------------------------------------------------------------------
+    
     def translate(self, parsed_data):
 
         # first pass: build our tree
         IR = super().visit(parsed_data)
+        if (False):
+            # second pass: add edges and output ports for function calls, etc.
+            for n,(name, node) in enumerate(self.nodes.items()):
+                if node["name"] == "FunctionCall":
+                    called_function  = self.functions[node["callee"]]
+                    node["outPorts"] = called_function["outPorts"]
+                if "parent_node" in node :
+                    print (n,
+                            "node:{}, parent:{}".format(
+                                node["name"],
+                                self.nodes[node["parent_node"]]["name"])
+                          )
 
-        # second pass: add edges and output ports for function calls, etc.
-        for name, node in self.nodes.items():
-            if node["name"] == "FunctionCall":
-                called_function  = self.functions[node["callee"]]
-                node["outPorts"] = called_function["outPorts"]
-                #called_function["nodes"] += node["nodes"]
-                #node["nodes"] = None
-            if "parent_node" in node :
-                print (
-                        "node:{}, parent:{}".format(
-                            node["name"],
-                            self.nodes[node["parent_node"]]["name"])
-                      )
+        print(self.get_used_identifiers(self.nodes["node10"]))
 
         for name, node in self.nodes.items():
             if "parent_node" in node: del node["parent_node"]
@@ -393,5 +423,5 @@ json_data = json.dumps(IR, indent=2, sort_keys=True)
 # ~ print (IR["nodes"])
 # ~ open("IR.json", "w").write(json_data)
 # ~ pp.pprint  (IR)
-print (json_data)
+# ~ print (json_data)
 #for k, v in nodes.items():            print (k)
