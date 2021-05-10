@@ -4,11 +4,14 @@
 
 from parsimonious.grammar import Grammar
 from parsimonious.nodes   import NodeVisitor
+
 import pprint
 import json
 
 #TODO no arguments case
-#TODO list used variables (and nodes)
+#TODO how to access a parent node in parsimonious
+#TODO find how to use named arguments in Visitors
+#TODO make chain function, that gets the top-level node containing required value
 
 #--------------------------------------------------------------------------------
 
@@ -257,8 +260,6 @@ class TreeVisitor(NodeVisitor):
                          location  = get_location(node),
                          )
 
-        #visited_children[2]["parent_node"] = this_node["id"]
-
         self.nodes[node_id] = this_node
         return this_node
 
@@ -266,7 +267,8 @@ class TreeVisitor(NodeVisitor):
 
     # TODO: replace identifiers with edges connecting current slot to master-node's input
     def visit_identifier(self, node, visited_children):
-        node_id = "not applicable"#self.get_node_id()
+        
+        node_id = "not applicable"
         this_node = dict(
                         name       = "Identifier",
                         identifier = node.text,
@@ -274,7 +276,6 @@ class TreeVisitor(NodeVisitor):
                         location   = get_location(node),
                         )
 
-        #nodes[ node_id ] = this_node
         return this_node
 
     #--------------------------------------------------------------------------------
@@ -359,9 +360,7 @@ class TreeVisitor(NodeVisitor):
     def get_used_identifiers(self, node):
         def __get_used_identifiers__(node):
             result = []
-            # ~ print (node)
             if node["name"] == "Identifier":
-                # ~ print (node)
                 result.append(node)
 
             if "nodes" in node:
@@ -387,14 +386,19 @@ class TreeVisitor(NodeVisitor):
                 
             elif node["name"] == "if":
                 p_n = self.nodes[node["parent_node"]]
-                print ("if", node["parent_node"])
+               
+                # TODO add recursive retrieveing of these (using getters and setters for example)
                 node["params"]   = p_n["params"]
                 node["inPorts"]  = p_n["inPorts"]
                 node["outPorts"] = p_n["outPorts"]
-                # ~ for i, port in enumerate (p_n["outPorts"]):
-                    # ~ node["edges"]    = self.create_edge(node["parent_node"], node["id"],i,i)
+
                 # TODO add parent_node to all nodes
                 # TODO ifs must be nested
+                
+        #delete the parent node references as we no longer need them
+        for n,(name, node) in enumerate(self.nodes.items()):
+            for name, node in self.nodes.items():
+                if "parent_node" in node: del node["parent_node"]
 
         if (False):
             # second pass: add edges and output ports for function calls, etc.
@@ -407,8 +411,6 @@ class TreeVisitor(NodeVisitor):
 
         # ~ print(self.get_used_identifiers(self.nodes["node10"]))
 
-        for name, node in self.nodes.items():
-            if "parent_node" in node: del node["parent_node"]
 
         return IR
 
@@ -429,7 +431,6 @@ def main(args):
     open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
     print (json_data)
-    #for k, v in nodes.items():            print (k)
 
     return 0
 
