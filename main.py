@@ -1,27 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+
 from parsimonious.grammar import Grammar
 from parsimonious.nodes   import NodeVisitor
 import pprint
 import json
-
-pp = pprint.PrettyPrinter(indent=0)
-
-grammar = Grammar(open("grammar.ini").read())
-
-text = open("fibs.sis").read()
-
-# then, else must have in ports
-# binary must have in ports
-# check out outports on all nodes
-# check out edges
-
-#plan:
-# 1.function
-# 2.ifelse
-# 3.binary
-# 4.literal
-# 5.call
-
-# edges
 
 #TODO no arguments case
 #TODO list used variables (and nodes)
@@ -49,7 +33,7 @@ def unwrap_list(list_):
     return list_
 
 #--------------------------------------------------------------------------------
-#import inspect
+
 class TreeVisitor(NodeVisitor):
 
     node_counter = 0
@@ -139,7 +123,7 @@ class TreeVisitor(NodeVisitor):
 
     def visit_function(self, node, visited_children):
         node_id     = self.get_node_id()
-        name        = visited_children[3]["name"]
+        name        = visited_children[3]["identifier"]
 
         #--------------------------------------------------------------------------------
         # process args:
@@ -231,9 +215,9 @@ class TreeVisitor(NodeVisitor):
                             id          = branch_node_id,
                             name        = name,
                             edges       = [],
-                            inPorts     = [],
-                            outPorts    = [],
-                            params      = [],
+                            inPorts     = [],#\
+                            outPorts    = [],#- filled out in second pass
+                            params      = [],#/
                             location    = "not applicable",
                             parent_node = node_id,
                           )
@@ -370,13 +354,15 @@ class TreeVisitor(NodeVisitor):
 
     #--------------------------------------------------------------------------------
     # returns the number of identifiers contained in the subtree under the specified node
+    #--------------------------------------------------------------------------------
+
     def get_used_identifiers(self, node):
         def __get_used_identifiers__(node):
             result = []
             # ~ print (node)
             if node["name"] == "Identifier":
                 # ~ print (node)
-                result.append( node)
+                result.append(node)
 
             if "nodes" in node:
                 for n in node["nodes"]:
@@ -389,17 +375,29 @@ class TreeVisitor(NodeVisitor):
         return __get_used_identifiers__(node)
 
     #--------------------------------------------------------------------------------
-    
+
     def translate(self, parsed_data):
 
         # first pass: build our tree
         IR = super().visit(parsed_data)
+        for n,(name, node) in enumerate(self.nodes.items()):
+            if node["name"] == "FunctionCall":
+                called_function  = self.functions[node["callee"]]
+                node["outPorts"] = called_function["outPorts"]
+                
+            elif node["name"] == "if":
+                p_n = self.nodes[node["parent_node"]]
+                print ("if", node["parent_node"])
+                node["params"]   = p_n["params"]
+                node["inPorts"]  = p_n["inPorts"]
+                node["outPorts"] = p_n["outPorts"]
+                # ~ for i, port in enumerate (p_n["outPorts"]):
+                    # ~ node["edges"]    = self.create_edge(node["parent_node"], node["id"],i,i)
+                # TODO add parent_node to all nodes
+                # TODO ifs must be nested
+
         if (False):
             # second pass: add edges and output ports for function calls, etc.
-            for n,(name, node) in enumerate(self.nodes.items()):
-                if node["name"] == "FunctionCall":
-                    called_function  = self.functions[node["callee"]]
-                    node["outPorts"] = called_function["outPorts"]
                 if "parent_node" in node :
                     print (n,
                             "node:{}, parent:{}".format(
@@ -407,7 +405,7 @@ class TreeVisitor(NodeVisitor):
                                 self.nodes[node["parent_node"]]["name"])
                           )
 
-        print(self.get_used_identifiers(self.nodes["node10"]))
+        # ~ print(self.get_used_identifiers(self.nodes["node10"]))
 
         for name, node in self.nodes.items():
             if "parent_node" in node: del node["parent_node"]
@@ -416,12 +414,26 @@ class TreeVisitor(NodeVisitor):
 
 #--------------------------------------------------------------------------------
 
-tv = TreeVisitor()
-IR = tv.translate(grammar.parse(text))
+def main(args):
+    pp = pprint.PrettyPrinter(indent=0)
 
-json_data = json.dumps(IR, indent=2, sort_keys=True)
-# ~ print (IR["nodes"])
-# ~ open("IR.json", "w").write(json_data)
-# ~ pp.pprint  (IR)
-# ~ print (json_data)
-#for k, v in nodes.items():            print (k)
+    grammar = Grammar(open("grammar.ini").read())
+
+    text = open("fibs.sis").read()
+
+    tv = TreeVisitor()
+    IR = tv.translate(grammar.parse(text))
+
+    json_data = json.dumps(IR, indent=2, sort_keys=True)
+    # ~ print (IR["nodes"])
+    open("IR.json", "w").write(json_data)
+    # ~ pp.pprint  (IR)
+    print (json_data)
+    #for k, v in nodes.items():            print (k)
+
+    return 0
+
+if __name__ == '__main__':
+    import sys
+    sys.exit(main(sys.argv))
+
