@@ -206,13 +206,15 @@ class TreeVisitor(NodeVisitor):
     def visit_if_else(self, node, visited_children):
 
         node_id   = self.get_node_id()
-        then_node = visited_children[6][0]
-        else_node = visited_children[10][0]
+        then_node = unwrap_list(visited_children[6][0])
+        else_node = unwrap_list(visited_children[10][0])
         cond_node = visited_children[2][0]
 
         def make_branch(node, name):
             branch_node_id = self.get_node_id()
+            #print (node)
             node["parent_node"] = branch_node_id
+           # print (nodee)
             branch = dict(
                             nodes       = [node],
                             id          = branch_node_id,
@@ -354,7 +356,7 @@ class TreeVisitor(NodeVisitor):
         return visited_children or node
 
     #--------------------------------------------------------------------------------
-    # returns the number of identifiers contained in the subtree under the specified node
+    # returns a list of identifiers contained in the subtree under the specified node
     #--------------------------------------------------------------------------------
 
     def get_used_identifiers(self, node):
