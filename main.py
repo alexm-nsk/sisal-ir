@@ -8,6 +8,8 @@ from parsimonious.nodes   import NodeVisitor
 import pprint
 import json
 
+no_subs = ["Identifier", "Literal"]
+
 #TODO no arguments case
 #TODO how to access a parent node in parsimonious
 #TODO find how to use named arguments in Visitors
@@ -203,25 +205,40 @@ class TreeVisitor(NodeVisitor):
 
     #--------------------------------------------------------------------------------
 
+    def get_all_nodes_in_a_row(self, node):
+
+        retval = [node]
+        if "nodes" in node:
+            for n in node["nodes"]:
+                if not "nodes" in n:
+                    retval.append(n)
+                else:
+                    retval += self.get_all_nodes_in_a_row(n)
+        
+            del (node["nodes"])
+        return retval
+
+    #--------------------------------------------------------------------------------
+
     def visit_if_else(self, node, visited_children):
 
         node_id   = self.get_node_id()
         then_node = unwrap_list(visited_children[6][0])
         else_node = unwrap_list(visited_children[10][0])
+        #else_node["nodes"] = 
+        
         cond_node = visited_children[2][0]
 
         def make_branch(node, name):
             branch_node_id = self.get_node_id()
-            #print (node)
-            node["parent_node"] = branch_node_id
-           # print (nodee)
+            #node["parent_node"] = branch_node_id
             branch = dict(
-                            nodes       = [node],
+                            nodes       = node,
                             id          = branch_node_id,
                             name        = name,
                             edges       = [],
                             inPorts     = [],#\
-                            outPorts    = [],#- filled out in second pass
+                            outPorts    = [],#- filled out in the second pass
                             params      = [],#/
                             location    = "not applicable",
                             parent_node = node_id,
@@ -229,15 +246,15 @@ class TreeVisitor(NodeVisitor):
             self.nodes[branch_node_id] = branch
             return branch
 
-        then  = make_branch(then_node, "Then")
-        else_ = make_branch(else_node, "Else")
+        then  = make_branch(self.get_all_nodes_in_a_row(then_node), "Then")
+        else_ = make_branch(self.get_all_nodes_in_a_row(else_node), "Else")
 
         condition_node_id = self.get_node_id()
 
         cond_node["parent_node"] = condition_node_id
 
         cond  =    dict(
-                         nodes        = [cond_node],
+                         nodes       = [cond_node],
                          name        = "Condition",
                          edges       = [],
                          id          = condition_node_id,
@@ -269,7 +286,7 @@ class TreeVisitor(NodeVisitor):
 
     # TODO: replace identifiers with edges connecting current slot to master-node's input
     def visit_identifier(self, node, visited_children):
-        
+
         node_id = "not applicable"
         this_node = dict(
                         name       = "Identifier",
@@ -331,7 +348,6 @@ class TreeVisitor(NodeVisitor):
         node_id       = self.get_node_id()
         args          = [unwrap_list(self.unpack_rec_list(visited_children[5]))]
 
-
         #TODO count args, create ports for them, connect them with edges
         function_name = visited_children[1]["identifier"]
 
@@ -385,10 +401,10 @@ class TreeVisitor(NodeVisitor):
             if node["name"] == "FunctionCall":
                 called_function  = self.functions[node["callee"]]
                 node["outPorts"] = called_function["outPorts"]
-                
+
             elif node["name"] == "if":
                 p_n = self.nodes[node["parent_node"]]
-               
+
                 # TODO add recursive retrieveing of these (using getters and setters for example)
                 node["params"]   = p_n["params"]
                 node["inPorts"]  = p_n["inPorts"]
@@ -396,8 +412,8 @@ class TreeVisitor(NodeVisitor):
 
                 # TODO add parent_node to all nodes
                 # TODO ifs must be nested
-                
-        #delete the parent node references as we no longer need them
+
+        # delete the parent node references as we no longer need them
         for n,(name, node) in enumerate(self.nodes.items()):
             for name, node in self.nodes.items():
                 if "parent_node" in node: del node["parent_node"]
@@ -440,3 +456,4 @@ if __name__ == '__main__':
     import sys
     sys.exit(main(sys.argv))
 
+#TODO add outports for function calls
