@@ -254,7 +254,7 @@ class TreeVisitor(NodeVisitor):
         cond_node["parent_node"] = condition_node_id
 
         cond  =    dict(
-                         nodes       = [cond_node],
+                         nodes       = self.get_all_nodes_in_a_row(cond_node),
                          name        = "Condition",
                          edges       = [],
                          id          = condition_node_id,
@@ -355,7 +355,7 @@ class TreeVisitor(NodeVisitor):
                          callee   = function_name,
                          # TODO add a check that the call has the same in_ports as the function
                          inPorts  = self.generate_inports(args, node_id),
-                         outPorts = [],# see function definition to get ports count and types
+                         outPorts = [],# TODO see function definition to get ports count and types
                          name     = "FunctionCall",
                          nodes    = args,
                          id       = node_id,
@@ -446,9 +446,10 @@ def main(args):
 
     json_data = json.dumps(IR, indent=2, sort_keys=True)
     # ~ print (IR["nodes"])
+    import os
     open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
-    print (json_data)
+    os.system ("echo '{}'| jq".format(json_data))
 
     return 0
 
