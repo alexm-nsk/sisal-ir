@@ -16,7 +16,7 @@ no_subs = ["Identifier", "Literal"]
 #TODO make chain function, that gets the top-level node containing required value
 
 #--------------------------------------------------------------------------------
-
+    
 def get_location(node):
 
     text = node.full_text
@@ -205,18 +205,34 @@ class TreeVisitor(NodeVisitor):
 
     #--------------------------------------------------------------------------------
 
-    def get_all_nodes_in_a_row(self, node):
+    def get_all_nodes_in_a_row(self, root_node):
 
-        retval = [node]
-        if "nodes" in node:
-            for n in node["nodes"]:
-                if not "nodes" in n:
-                    retval.append(n)
-                else:
-                    retval += self.get_all_nodes_in_a_row(n)
         
-            del (node["nodes"])
-        return retval
+        def _get_all_nodes_in_a_row_(node):
+
+            retval = [node]
+            if "nodes" in node:
+           
+                if node["name"] == "Binary":
+                    #print("Binary")
+                    nodes = node["nodes"]
+                    #nid = lambda x:nodes[x]["id"]
+                    if (not "edges" in root_node): root_node["edges"] = []
+                    root_node["edges"].append(self.create_edge(nodes[0]["id"], node["id"], 0,0))
+                    root_node["edges"].append(self.create_edge(nodes[1]["id"], node["id"], 0,1))
+                    pass
+           
+                for n in node["nodes"]:
+                    if not "nodes" in n:
+                        # no more subnodes? append just this one
+                        retval.append(n)
+                    else:
+                        retval += _get_all_nodes_in_a_row_(n)
+            
+                del (node["nodes"])
+            return retval
+            
+        return _get_all_nodes_in_a_row_(root_node)
 
     #--------------------------------------------------------------------------------
 
@@ -225,13 +241,11 @@ class TreeVisitor(NodeVisitor):
         node_id   = self.get_node_id()
         then_node = unwrap_list(visited_children[6][0])
         else_node = unwrap_list(visited_children[10][0])
-        #else_node["nodes"] = 
         
         cond_node = visited_children[2][0]
 
         def make_branch(node, name):
             branch_node_id = self.get_node_id()
-            #node["parent_node"] = branch_node_id
             branch = dict(
                             nodes       = node,
                             id          = branch_node_id,
