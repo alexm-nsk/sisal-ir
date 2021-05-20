@@ -16,7 +16,7 @@ no_subs = ["Identifier", "Literal"]
 #TODO make chain function, that gets the top-level node containing required value
 
 #--------------------------------------------------------------------------------
-    
+
 def get_location(node):
 
     text = node.full_text
@@ -205,34 +205,46 @@ class TreeVisitor(NodeVisitor):
 
     #--------------------------------------------------------------------------------
 
-    def get_all_nodes_in_a_row(self, root_node):
-
-        
+    def get_all_nodes_in_a_row(self, sub_nodes, root):
+        #print (sub_nodes["name"])
         def _get_all_nodes_in_a_row_(node):
 
-            retval = [node]
-            if "nodes" in node:
-           
-                if node["name"] == "Binary":
-                    #print("Binary")
+             
+            
+            if (node["name"] == "Identifier"):
+                root["edges"].append(self.create_edge(root["id"], root["id"], 0, 0))
+                retval = []
+            else:
+                retval = [node]
+                if "nodes" in node:
+
                     nodes = node["nodes"]
-                    #nid = lambda x:nodes[x]["id"]
-                    if (not "edges" in root_node): root_node["edges"] = []
-                    root_node["edges"].append(self.create_edge(nodes[0]["id"], node["id"], 0,0))
-                    root_node["edges"].append(self.create_edge(nodes[1]["id"], node["id"], 0,1))
-                    pass
-           
-                for n in node["nodes"]:
-                    if not "nodes" in n:
-                        # no more subnodes? append just this one
-                        retval.append(n)
-                    else:
-                        retval += _get_all_nodes_in_a_row_(n)
-            
-                del (node["nodes"])
+                    
+                    # process edges
+                    for i, n in enumerate(nodes):
+                        if n["name"] == "Identifier":
+                            #print ("Identifier")
+                            root["edges"].append(self.create_edge(sub_nodes["id"], node["id"], 0, i))
+                            print ("connected to nain node!")
+                        else:
+                            root["edges"].append(self.create_edge(n["id"], node["id"], 0, i))
+                            
+                    #process sub_nodes
+                    for n in node["nodes"]:
+                        if not "nodes" in n:
+                            # no more subnodes? append just this one
+                            if not n["name"] == "Identifier":
+                                retval.append(n)
+                                #print (n["name"])
+                        else:
+                            retval += _get_all_nodes_in_a_row_(n)
+
+                    del (node["nodes"])
             return retval
-            
-        return _get_all_nodes_in_a_row_(root_node)
+
+        if (not "edges" in root): root["edges"] = []
+
+        return _get_all_nodes_in_a_row_(sub_nodes)
 
     #--------------------------------------------------------------------------------
 
@@ -241,7 +253,7 @@ class TreeVisitor(NodeVisitor):
         node_id   = self.get_node_id()
         then_node = unwrap_list(visited_children[6][0])
         else_node = unwrap_list(visited_children[10][0])
-        
+
         cond_node = visited_children[2][0]
 
         def make_branch(node, name):
@@ -260,15 +272,19 @@ class TreeVisitor(NodeVisitor):
             self.nodes[branch_node_id] = branch
             return branch
 
-        then  = make_branch(self.get_all_nodes_in_a_row(then_node), "Then")
-        else_ = make_branch(self.get_all_nodes_in_a_row(else_node), "Else")
+        then  = make_branch([], "Then")
+        then["nodes"] =self.get_all_nodes_in_a_row(then_node,then)
+        print (then["nodes"])
+        print (then_node)
+        else_ = make_branch([], "Else")
+        else_["nodes"] = self.get_all_nodes_in_a_row(else_node, else_)
 
         condition_node_id = self.get_node_id()
 
         cond_node["parent_node"] = condition_node_id
 
         cond  =    dict(
-                         nodes       = self.get_all_nodes_in_a_row(cond_node),
+                         #nodes       = cond_node,
                          name        = "Condition",
                          edges       = [],
                          id          = condition_node_id,
@@ -278,7 +294,7 @@ class TreeVisitor(NodeVisitor):
                          location    = "not applicable",
                          parent_node = node_id,
                        )
-
+        cond["nodes"] = self.get_all_nodes_in_a_row(cond_node, cond)
         self.nodes[condition_node_id] = cond
 
         this_node = dict(name      = "if",
@@ -317,9 +333,9 @@ class TreeVisitor(NodeVisitor):
 
         node_id   = self.get_node_id()
 
-        out_ports = {"outPorts" : [dict(index  = 0,
+        out_ports = [dict(index  = 0,
                                         nodeId = node_id,
-                                        type   = {"location": "not applicable", "name": "integer"})]}
+                                        type   = {"location": "not applicable", "name": "integer"})]
 
         this_node = dict(
                          value    = int(node.text),
@@ -461,7 +477,7 @@ def main(args):
     json_data = json.dumps(IR, indent=2, sort_keys=True)
     # ~ print (IR["nodes"])
     import os
-    open("IR.json", "w").write(json_data)
+    # ~ open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
     os.system ("echo '{}'| jq".format(json_data))
 
