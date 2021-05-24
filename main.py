@@ -12,7 +12,6 @@ no_subs = ["Identifier", "Literal"]
 
 #TODO no arguments case
 #TODO how to access a parent node in parsimonious
-#TODO find how to use named arguments in Visitors
 #TODO make chain function, that gets the top-level node containing required value
 
 #--------------------------------------------------------------------------------
@@ -208,34 +207,30 @@ class TreeVisitor(NodeVisitor):
     def get_all_nodes_in_a_row(self, sub_nodes, root):
         #print (sub_nodes["name"])
         def _get_all_nodes_in_a_row_(node):
-
-             
-            
+            #if root is identifier, we're done: add the edge and quit
             if (node["name"] == "Identifier"):
                 root["edges"].append(self.create_edge(root["id"], root["id"], 0, 0))
                 retval = []
+            #otherwise, keep unpacking the subtree
             else:
                 retval = [node]
                 if "nodes" in node:
 
                     nodes = node["nodes"]
-                    
+
                     # process edges
                     for i, n in enumerate(nodes):
                         if n["name"] == "Identifier":
-                            #print ("Identifier")
-                            root["edges"].append(self.create_edge(sub_nodes["id"], node["id"], 0, i))
-                            print ("connected to nain node!")
+                            root["edges"].append(self.create_edge(root["id"], node["id"], 0, i))
                         else:
                             root["edges"].append(self.create_edge(n["id"], node["id"], 0, i))
-                            
+
                     #process sub_nodes
                     for n in node["nodes"]:
                         if not "nodes" in n:
                             # no more subnodes? append just this one
                             if not n["name"] == "Identifier":
                                 retval.append(n)
-                                #print (n["name"])
                         else:
                             retval += _get_all_nodes_in_a_row_(n)
 
@@ -265,7 +260,7 @@ class TreeVisitor(NodeVisitor):
                             edges       = [],
                             inPorts     = [],#\
                             outPorts    = [],#- filled out in the second pass
-                            params      = [],#/
+                            params      = [],#TODO do these!
                             location    = "not applicable",
                             parent_node = node_id,
                           )
@@ -290,7 +285,7 @@ class TreeVisitor(NodeVisitor):
                          id          = condition_node_id,
                          inPorts     = [],
                          outPorts    = [],
-                         params      = [],
+                         params      = [],#TODO do these!
                          location    = "not applicable",
                          parent_node = node_id,
                        )
@@ -302,7 +297,7 @@ class TreeVisitor(NodeVisitor):
                          edges     = [],
                          inPorts   = [],
                          outPorts  = [],
-                         params    = [],
+                         params    = [], #TODO do these!
                          branches  = [then, else_],
                          condition = cond,
                          id        = node_id,
@@ -439,26 +434,15 @@ class TreeVisitor(NodeVisitor):
                 node["params"]   = p_n["params"]
                 node["inPorts"]  = p_n["inPorts"]
                 node["outPorts"] = p_n["outPorts"]
-
+                for n in node["branches"]:
+                    n["params"] = p_n["params"]
+                node["condition"]["params"] = p_n["params"]
                 # TODO add parent_node to all nodes
-                # TODO ifs must be nested
 
         # delete the parent node references as we no longer need them
         for n,(name, node) in enumerate(self.nodes.items()):
             for name, node in self.nodes.items():
                 if "parent_node" in node: del node["parent_node"]
-
-        if (False):
-            # second pass: add edges and output ports for function calls, etc.
-                if "parent_node" in node :
-                    print (n,
-                            "node:{}, parent:{}".format(
-                                node["name"],
-                                self.nodes[node["parent_node"]]["name"])
-                          )
-
-        # ~ print(self.get_used_identifiers(self.nodes["node10"]))
-
 
         return IR
 
@@ -477,7 +461,7 @@ def main(args):
     json_data = json.dumps(IR, indent=2, sort_keys=True)
     # ~ print (IR["nodes"])
     import os
-    # ~ open("IR.json", "w").write(json_data)
+    open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
     os.system ("echo '{}'| jq".format(json_data))
 
