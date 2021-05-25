@@ -8,6 +8,9 @@ from parsimonious.nodes   import NodeVisitor
 import pprint
 import json
 
+import os
+import graphml
+
 no_subs = ["Identifier", "Literal"]
 
 #TODO no arguments case
@@ -269,8 +272,7 @@ class TreeVisitor(NodeVisitor):
 
         then  = make_branch([], "Then")
         then["nodes"] =self.get_all_nodes_in_a_row(then_node,then)
-        print (then["nodes"])
-        print (then_node)
+
         else_ = make_branch([], "Else")
         else_["nodes"] = self.get_all_nodes_in_a_row(else_node, else_)
 
@@ -438,7 +440,7 @@ class TreeVisitor(NodeVisitor):
                     n["params"] = p_n["params"]
                 node["condition"]["params"] = p_n["params"]
                 # TODO add parent_node to all nodes
-
+            
         # delete the parent node references as we no longer need them
         for n,(name, node) in enumerate(self.nodes.items()):
             for name, node in self.nodes.items():
@@ -460,10 +462,11 @@ def main(args):
 
     json_data = json.dumps(IR, indent=2, sort_keys=True)
     # ~ print (IR["nodes"])
-    import os
-    open("IR.json", "w").write(json_data)
+
+    os.system ("echo '%s'| pygmentize -l xml" % graphml.emit(IR))
+    # ~ open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
-    os.system ("echo '{}'| jq".format(json_data))
+    # ~ os.system ("echo '%s'| jq" % json_data)
 
     return 0
 
