@@ -257,10 +257,10 @@ class TreeVisitor(NodeVisitor):
         def make_branch(node, name):
             branch_node_id = self.get_node_id()
             branch = dict(
-                            nodes       = node,
+                            nodes       = [],
                             id          = branch_node_id,
                             name        = name,
-                            edges       = [],
+                            edges       = [self.create_edge(node["id"],branch_node_id,0,0)] if node["id"] !="not applicable" else [],
                             inPorts     = [],#\
                             outPorts    = [],#- filled out in the second pass
                             params      = [],#TODO do these!
@@ -270,10 +270,10 @@ class TreeVisitor(NodeVisitor):
             self.nodes[branch_node_id] = branch
             return branch
 
-        then  = make_branch([], "Then")
+        then  = make_branch(then_node, "Then")
         then["nodes"] =self.get_all_nodes_in_a_row(then_node,then)
 
-        else_ = make_branch([], "Else")
+        else_ = make_branch(else_node, "Else")
         else_["nodes"] = self.get_all_nodes_in_a_row(else_node, else_)
 
         condition_node_id = self.get_node_id()
@@ -294,7 +294,7 @@ class TreeVisitor(NodeVisitor):
         cond["nodes"] = self.get_all_nodes_in_a_row(cond_node, cond)
         self.nodes[condition_node_id] = cond
 
-        this_node = dict(name      = "if",
+        this_node = dict(name      = "If",
                          nodes     = [],#leave empty
                          edges     = [],
                          inPorts   = [],
@@ -346,7 +346,13 @@ class TreeVisitor(NodeVisitor):
         return this_node
 
     #--------------------------------------------------------------------------------
-
+    op_to_type = {
+        "<" : "boolean",
+        ">" : "boolean",
+        "+" : "integer",
+        "-" : "integer",
+        "*" : "integer",
+    }
     def visit_bin(self, node, visited_children):
 
         node_id = self.get_node_id()
@@ -354,16 +360,35 @@ class TreeVisitor(NodeVisitor):
         left, _ ,op, _ ,right = visited_children
         left  = left[0]
         right = right[0]
-        op    = op[0]
+        op    = op[0].text
 
         left ["parent_node"] = node_id
         right["parent_node"] = node_id
-
+        
+        # TODO get left and right types from left and right's out port types
+        left_port =  dict( index  = 0,
+                            nodeId = node_id,
+                            type   = {"location": "not applicable", 
+                            "name": "integer"})
+                            
+        right_port =  dict( index  = 1,
+                            nodeId = node_id,
+                            type   = {"location": "not applicable", 
+                            "name": "integer"})
+                            
+        out_port =  dict( index  = 0,
+                            nodeId = node_id,
+                            type   = {"location": "not applicable", 
+                            "name": TreeVisitor.op_to_type[op]})
+                            
         this_node = dict(name        = "Binary",
                          nodes       = [left, right],
-                         operator    = op.text,
+                         operator    = op,
                          id          = node_id,
-                         location    = get_location(node))
+                         location    = get_location(node),
+                         inPorts     = [left_port, right_port],
+                         outPorts    = [out_port]
+                         )
 
         self.nodes[node_id] = this_node
         return this_node
@@ -382,7 +407,7 @@ class TreeVisitor(NodeVisitor):
                          callee   = function_name,
                          # TODO add a check that the call has the same in_ports as the function
                          inPorts  = self.generate_inports(args, node_id),
-                         outPorts = [],# TODO see function definition to get ports count and types
+                         outPorts = [],#filled in second pass (see the "translate" method)
                          name     = "FunctionCall",
                          nodes    = args,
                          id       = node_id,
@@ -463,8 +488,8 @@ def main(args):
     json_data = json.dumps(IR, indent=2, sort_keys=True)
     # ~ print (IR["nodes"])
 
-    os.system ("echo '%s'| pygmentize -l xml" % graphml.emit(IR))
-    # ~ open("IR.json", "w").write(json_data)
+    os.system ("echo '%s'| pygmentize -l xml" % graphml.emit(IR, tv.nodes))
+    open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
     # ~ os.system ("echo '%s'| jq" % json_data)
 
