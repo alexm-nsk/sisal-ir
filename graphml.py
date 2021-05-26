@@ -88,13 +88,13 @@ def make_node(node):
     
     if "edges" in node:
         for e in node["edges"]:
-            target_node_type = "out" if is_parent(e[1]["nodeId"], e[0]["nodeId"]) else "in"
-            source_node_type = "in" if is_parent(e[0]["nodeId"], e[1]["nodeId"]) else "out"
+            source_port_type = "in" if is_parent(e[0]["nodeId"], e[1]["nodeId"]) else "out"
+            target_port_type = "out" if is_parent(e[1]["nodeId"], e[0]["nodeId"]) else "in"
             
             contents += "\n" + make_edge(
             e[0]["nodeId"],e[1]["nodeId"],
-            source_node_type+str(e[0]["index"])
-            , target_node_type+str(e[1]["index"]), 
+            source_port_type + str(e[0]["index"])
+            , target_port_type + str(e[1]["index"]), 
             e[0]["type"]["name"])
 
     return f'<node id=\"{node["id"]}\">\n'\

@@ -50,6 +50,7 @@ class TreeVisitor(NodeVisitor):
     params = {}
     # Here we store all the nodes, addressed by their names like "node3"
     nodes  = {}
+    edges  = []
     #--------------------------------------------------------------------------------
 
     def get_node_id(self):
@@ -109,7 +110,8 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def create_edge(self, node1_id, node2_id, src_index, dst_index):
-        return [    {"index"  : src_index,
+
+        edge = [    {"index"  : src_index,
                      "nodeId" : node1_id,
                      "type"   : {
                         "location" : "",
@@ -125,6 +127,8 @@ class TreeVisitor(NodeVisitor):
                         }
                      }
                 ]
+        self.edges.append(edge)
+        return edge
 
     #--------------------------------------------------------------------------------
 
@@ -283,7 +287,7 @@ class TreeVisitor(NodeVisitor):
         cond  =    dict(
                          #nodes       = cond_node,
                          name        = "Condition",
-                         edges       = [],
+                         edges       = [self.create_edge(cond_node["id"],condition_node_id,0,0)] if cond_node["id"] !="not applicable" else [],
                          id          = condition_node_id,
                          inPorts     = [],
                          outPorts    = [],
@@ -364,23 +368,23 @@ class TreeVisitor(NodeVisitor):
 
         left ["parent_node"] = node_id
         right["parent_node"] = node_id
-        
+
         # TODO get left and right types from left and right's out port types
         left_port =  dict( index  = 0,
                             nodeId = node_id,
-                            type   = {"location": "not applicable", 
+                            type   = {"location": "not applicable",
                             "name": "integer"})
-                            
+
         right_port =  dict( index  = 1,
                             nodeId = node_id,
-                            type   = {"location": "not applicable", 
+                            type   = {"location": "not applicable",
                             "name": "integer"})
-                            
+
         out_port =  dict( index  = 0,
                             nodeId = node_id,
-                            type   = {"location": "not applicable", 
+                            type   = {"location": "not applicable",
                             "name": TreeVisitor.op_to_type[op]})
-                            
+
         this_node = dict(name        = "Binary",
                          nodes       = [left, right],
                          operator    = op,
@@ -444,7 +448,36 @@ class TreeVisitor(NodeVisitor):
         return __get_used_identifiers__(node)
 
     #--------------------------------------------------------------------------------
+    def set_edges_types(self):
 
+        def is_parent(n1, n2):
+            try:
+                if not "nodes" in self.nodes[n1]:
+                    return False
+                if any([n for n in self.nodes[n1]["nodes"] if n["id"]==n2]):
+                    return True
+                return False
+            except:
+                print ([n for n in self.nodes],node1_id,node2_id)
+
+        for e in self.edges:
+            node1_id = e[0]["nodeId"]
+            node2_id = e[1]["nodeId"]
+            src_index = e[0]["index"]
+            dst_index = e[1]["index"]
+            source_port_type = "in" if is_parent(node1_id, node2_id) else "out"
+            target_port_type = "out" if is_parent(node2_id, node1_id) else "in"
+            type1 = self.nodes[node1_id][source_port_type + "Ports"][src_index]["type"]["name"]
+            type2 = self.nodes[node2_id][target_port_type + "Ports"][dst_index]["type"]["name"]
+            e[0]["type"]["name"] = type1
+            e[1]["type"]["name"] = type2
+            # ~ try:
+            # ~ except:
+                # ~ print (self.nodes[node2_id]["name"])
+                # ~ print (source_port_type)
+                # ~ print (self.nodes[node2_id][source_port_type + "Ports"])
+
+    #--------------------------------------------------------------------------------
     def translate(self, parsed_data):
 
         # first pass: build our tree
@@ -454,23 +487,26 @@ class TreeVisitor(NodeVisitor):
                 called_function  = self.functions[node["callee"]]
                 node["outPorts"] = called_function["outPorts"]
 
-            elif node["name"] == "if":
+            elif node["name"] == "If":
                 p_n = self.nodes[node["parent_node"]]
 
                 # TODO add recursive retrieveing of these (using getters and setters for example)
                 node["params"]   = p_n["params"]
                 node["inPorts"]  = p_n["inPorts"]
                 node["outPorts"] = p_n["outPorts"]
-                for n in node["branches"]:
+                for n in node["branches"] + [node["condition"]]:
                     n["params"] = p_n["params"]
+                    n["outPorts"] = p_n["outPorts"]
+                    n["inPorts"] = p_n["inPorts"]
+                    # ~ pri5nt (p_n)
                 node["condition"]["params"] = p_n["params"]
                 # TODO add parent_node to all nodes
-            
+
         # delete the parent node references as we no longer need them
         for n,(name, node) in enumerate(self.nodes.items()):
             for name, node in self.nodes.items():
                 if "parent_node" in node: del node["parent_node"]
-
+        self.set_edges_types()
         return IR
 
 #--------------------------------------------------------------------------------
