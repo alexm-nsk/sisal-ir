@@ -497,7 +497,6 @@ class TreeVisitor(NodeVisitor):
                     n["inPorts"] = p_n["inPorts"]
 
                 node["condition"]["params"] = p_n["params"]
-                # TODO add parent_node to all nodes
 
         if move_nodes_from_empty_branches_to_parent:
             for name, node in self.nodes.items():

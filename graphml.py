@@ -3,7 +3,7 @@
 #
 import re
 
-nodemap
+nodemap = []
 
 #indent text within another block for propper nesting
 def indent(string):
