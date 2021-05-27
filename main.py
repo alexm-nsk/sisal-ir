@@ -13,6 +13,9 @@ import graphml
 
 no_subs = ["Identifier", "Literal"]
 
+#parameters:
+move_nodes_from_empty_branches_to_parent = True
+
 #TODO no arguments case
 #TODO how to access a parent node in parsimonious
 #TODO make chain function, that gets the top-level node containing required value
@@ -212,7 +215,6 @@ class TreeVisitor(NodeVisitor):
     #--------------------------------------------------------------------------------
 
     def get_all_nodes_in_a_row(self, sub_nodes, root):
-        #print (sub_nodes["name"])
         def _get_all_nodes_in_a_row_(node):
             #if root is identifier, we're done: add the edge and quit
             if (node["name"] == "Identifier"):
@@ -471,12 +473,7 @@ class TreeVisitor(NodeVisitor):
             type2 = self.nodes[node2_id][target_port_type + "Ports"][dst_index]["type"]["name"]
             e[0]["type"]["name"] = type1
             e[1]["type"]["name"] = type2
-            # ~ try:
-            # ~ except:
-                # ~ print (self.nodes[node2_id]["name"])
-                # ~ print (source_port_type)
-                # ~ print (self.nodes[node2_id][source_port_type + "Ports"])
-
+            
     #--------------------------------------------------------------------------------
     def translate(self, parsed_data):
 
@@ -502,6 +499,16 @@ class TreeVisitor(NodeVisitor):
                 node["condition"]["params"] = p_n["params"]
                 # TODO add parent_node to all nodes
 
+        if move_nodes_from_empty_branches_to_parent:
+            for name, node in self.nodes.items():
+                if(node["name"] in ["Then", "Else", "Condition"]):
+                    if node["nodes"] == []:
+                        parent_node = self.nodes[node["parent_node"]]
+                        parent_node["edges"].extend(node["edges"])
+                        #node["edges"] = []
+                        del node["edges"]
+                        print (node["name"], parent_node["name"] if "parent_node" in node else "")
+
         # delete the parent node references as we no longer need them
         for n,(name, node) in enumerate(self.nodes.items()):
             for name, node in self.nodes.items():
@@ -523,12 +530,15 @@ def main(args):
 
     json_data = json.dumps(IR, indent=2, sort_keys=True)
     # ~ print (IR["nodes"])
-
-    os.system ("echo '%s'| pygmentize -l xml" % graphml.emit(IR, tv.nodes))
+    
+    gml = graphml.emit(IR, tv.nodes)
+    # ~ gml = gml.replace ("<<", "less<")
+    os.system ("echo '%s'| pygmentize -l xml" % gml)
+    os.system ("echo '%s'| xmllint --noout -" %gml)
+    
     open("IR.json", "w").write(json_data)
     # ~ pp.pprint  (IR)
     # ~ os.system ("echo '%s'| jq" % json_data)
-
     return 0
 
 if __name__ == '__main__':
