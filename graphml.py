@@ -3,19 +3,13 @@
 #
 import re
 
-#TODO rename ports in edges, make sure to target outports when nessessary
-nodemap = "e"
+nodemap
 
 #indent text within another block for propper nesting
 def indent(string):
     indentation = "  "
     return (indentation + string.replace("\n", "\n" + indentation))#.strip()
-# ~ <graphml
-  # ~ xmlns="http://graphml.graphdrawing.org/xmlns"
 
-  # ~ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        # ~ xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
-          # ~ http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
 def make_document(content):
     return '<?xml version="1.0" encoding="UTF-8"?>\n'\
            '<graphml xmlns="http://graphml.graphdrawing.org/xmlns"\n\n'\
@@ -83,7 +77,7 @@ def make_node(node):
                     [f'<data key=\"{key}\">{node[ir_name]}</data>'
                     for key, ir_name in props_to_save.items()
                     if ir_name in node])
-    #<port name="in0" type="integer" />
+
     ports_str = ""
     if "inPorts" in node:
         ports_str =  "".join(
@@ -112,10 +106,6 @@ def make_node(node):
         # ~ if edges_string:
             # ~ contents     = make_graph(node["id"]+"_graph", edges_string)
         
-    
-        
-    
-        
     return f'<node id=\"{node["id"]}\">\n'\
            f'{indent(props_str)}\n'\
            f'{indent(ports_str)}\n'\
@@ -125,12 +115,10 @@ def make_node(node):
 def emit(IR, nodes):
     global nodemap
     nodemap = nodes
-    # ~ print ([n for n in nodes])
     graph    = make_graph("id", make_node(IR))
     document = make_document(graph)
     document = re.sub("\n\s*\n", "\n", document)
-    # ~ document = re.sub("\n[ ]*?\n", "\n", document)
-    # ~ open("/home/alexm/temp.gml", "w").write(document)
+
     return document
 
 def main(args):

@@ -495,7 +495,7 @@ class TreeVisitor(NodeVisitor):
                     n["params"] = p_n["params"]
                     n["outPorts"] = p_n["outPorts"]
                     n["inPorts"] = p_n["inPorts"]
-                    # ~ pri5nt (p_n)
+
                 node["condition"]["params"] = p_n["params"]
                 # TODO add parent_node to all nodes
 
@@ -529,7 +529,6 @@ def main(args):
     IR = tv.translate(grammar.parse(text))
 
     json_data = json.dumps(IR, indent=2, sort_keys=True)
-    # ~ print (IR["nodes"])
     
     gml = graphml.emit(IR, tv.nodes)
     # ~ gml = gml.replace ("<<", "less<")
@@ -537,12 +536,10 @@ def main(args):
     os.system ("echo '%s'| xmllint --noout -" %gml)
     
     open("IR.json", "w").write(json_data)
-    # ~ pp.pprint  (IR)
+
     # ~ os.system ("echo '%s'| jq" % json_data)
     return 0
 
 if __name__ == '__main__':
     import sys
     sys.exit(main(sys.argv))
-
-#TODO add outports for function calls
